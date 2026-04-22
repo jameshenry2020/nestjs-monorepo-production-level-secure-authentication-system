@@ -73,3 +73,19 @@ export class RedisConfiguration {
   }
 
 }
+
+@Configuration()
+@RequiredArgsConstructor()
+export class JwtConfiguration {
+  @Value('JWT_SECRET')
+  secret: string
+
+  @Value('JWT_EXPIRE_IN', {parse: parseInt})
+  expire: number 
+
+   constructor(config: Required<JwtConfiguration>) {
+      this.secret = config.secret;
+      this.expire = config.expire;
+      
+  }
+}

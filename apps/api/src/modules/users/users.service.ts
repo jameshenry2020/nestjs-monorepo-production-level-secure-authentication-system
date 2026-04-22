@@ -1,7 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { DatabaseService } from 'src/infrastructure/database/database.service';
 import { CreateUserDto } from './dto/create-user.dto';
-import { hash } from "argon2";
+import { hash, verify } from "argon2";
 import { generateOtp, hashOtp } from 'src/common/utils/user.utils';
 
 @Injectable()
@@ -29,14 +29,19 @@ export class UsersService {
         return { user, plainOtp }
     }
 
-    async generateOtpforUser(){
-
-    }
 
     async findUserByEmail(email:string){
         return await this.databaseService.user.findUnique({
             where:{
                 email
+            }
+        })
+    }
+
+    async findUserById(userId:string){
+        return await this.databaseService.user.findUnique({
+            where:{
+                id: userId
             }
         })
     }
@@ -84,10 +89,23 @@ export class UsersService {
             createdAt: 'desc',
             },
         })
-        if (!otpRecord) throw new Error('Invalid or expired OTP')
-        const hashedInput = await hashOtp(inputOtp)
-        if (hashedInput !== otpRecord.hashedOtp) {
-            throw new Error('Invalid OTP')
+        if (!otpRecord) throw new BadRequestException('Invalid or expired OTP')
+        const isHashMatch = await verify(otpRecord.hashedOtp, inputOtp)
+        if (!isHashMatch) {
+            throw new BadRequestException('Invalid OTP')
         }
+
+        await this.databaseService.$transaction([
+            this.databaseService.otpCode.update({
+            where: { id: otpRecord.id },
+            data: { isUsed: true },
+            }),
+            this.databaseService.user.update({
+            where: { id: userId },
+            data: { isEmailVerified: true, isActive: true },
+            }),
+        ])
+
+        return true
     }
 }
