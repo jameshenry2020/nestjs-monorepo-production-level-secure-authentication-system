@@ -9,24 +9,27 @@ export class UsersService {
     constructor(private readonly databaseService:DatabaseService){}
 
     async createUser(createUserDto: CreateUserDto){
-        const {password }=createUserDto
-        const hashedPassword = await hash(password)
-        const plainOtp = generateOtp()
-        const hashedOtp = await hashOtp(plainOtp)
-        const expiresAt = new Date(Date.now() + 10 * 60 * 1000)
+        const { password, confirm_password, ...userData } = createUserDto;
+        if (password !== confirm_password) {
+            throw new BadRequestException('Password and confirm password do not match');
+        }
+        const hashedPassword = await hash(password);
+        const plainOtp = generateOtp();
+        const hashedOtp = await hashOtp(plainOtp);
+        const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
         const user = await this.databaseService.user.create({
-            data:{
+            data: {
+                ...userData,
                 hashedPassword: hashedPassword,
-                ...createUserDto,
-                otp:{
-                    create:{
+                otp: {
+                    create: {
                         hashedOtp,
-                        expiresAt
-                    }
-                }
-            }
-        })
-        return { user, plainOtp }
+                        expiresAt,
+                    },
+                },
+            },
+        });
+        return { user, plainOtp };
     }
 
 
