@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html>
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -12,6 +13,7 @@
       padding: 0;
       background-color: #f7f9fc;
     }
+
     .container {
       max-width: 600px;
       margin: 0 auto;
@@ -20,6 +22,7 @@
       border-radius: 8px;
       box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
     }
+
     .header {
       text-align: center;
       padding: 20px 0;
@@ -27,20 +30,24 @@
       box-sizing: border-box;
       color: #f7f9fc;
     }
+
     .header h2 {
       color: #fff;
       font-size: 24px;
       margin: 0 0 10px;
     }
+
     .content {
       text-align: center;
       padding: 20px;
     }
+
     .content h1 {
       color: #110f0f;
       font-size: 24px;
       margin: 0 0 10px;
     }
+
     .otp-code {
       font-size: 36px;
       font-weight: bold;
@@ -48,11 +55,13 @@
       letter-spacing: 2px;
       margin: 20px 0;
     }
+
     .instructions {
       font-size: 16px;
       color: #666;
       line-height: 1.6;
     }
+
     .footer {
       text-align: center;
       padding: 20px;
@@ -61,6 +70,7 @@
     }
   </style>
 </head>
+
 <body>
   <div class="container">
     <div class="header">
@@ -69,8 +79,9 @@
     </div>
     <div class="content">
       <h1>Email Verification</h1>
-      <p class="instructions">Use the OTP code below to verify your email address. This code will expire in 10 minutes.</p>
-      <p class="otp-code">{{otp_code}}</p>
+      <p class="instructions">Use the OTP code below to verify your email address. This code will expire in 10 minutes.
+      </p>
+      <p class="otp-code">{{otp}}</p>
       <p class="instructions">If you didn’t request this, please ignore this email.</p>
     </div>
     <div class="footer">
@@ -78,4 +89,5 @@
     </div>
   </div>
 </body>
+
 </html>

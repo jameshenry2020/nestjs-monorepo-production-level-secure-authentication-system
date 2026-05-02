@@ -22,7 +22,7 @@ import { EMailService } from "./email.service";
             from: config.fromEmail,
          },
         template: {
-            dir: path.join(__dirname, 'templates'),
+            dir: path.resolve(process.cwd(), 'src', 'infrastructure', 'mails', 'templates'),
             adapter: new HandlebarsAdapter(),
             options: {
             strict: true,
