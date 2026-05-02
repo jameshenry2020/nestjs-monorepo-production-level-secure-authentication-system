@@ -3,10 +3,14 @@ import { DatabaseService } from 'src/infrastructure/database/database.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { hash, verify } from "argon2";
 import { generateOtp, hashOtp } from 'src/common/utils/user.utils';
+import { ServerConfiguration } from 'src/config/app.config';
 
 @Injectable()
 export class UsersService {
-    constructor(private readonly databaseService:DatabaseService){}
+    constructor(
+        private readonly databaseService:DatabaseService,
+        private readonly serverConfig: ServerConfiguration
+    ){}
 
     async createUser(createUserDto: CreateUserDto){
         const { password, confirm_password, ...userData } = createUserDto;
@@ -110,5 +114,19 @@ export class UsersService {
         ])
 
         return true
+    }
+
+    async createOAuthUser(data: { email: string; name: string; provider: 'google' | 'email'; password?: string }) {
+        const hashedPassword = await hash(data.password || this.serverConfig.serverPassword);
+        return await this.databaseService.user.create({
+            data: {
+                email: data.email,
+                name: data.name,
+                hashedPassword: hashedPassword,
+                provider: data.provider,
+                isEmailVerified: true,
+                isActive: true,
+            },
+        });
     }
 }

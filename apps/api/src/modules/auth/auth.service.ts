@@ -87,4 +87,31 @@ export class AuthService {
         }
         return currentUser
     }
+
+    async googleLogin(req) {
+        if (!req.user) {
+            throw new BadRequestException('No user from google');
+        }
+
+        const { email, firstName, lastName } = req.user;
+        const name = `${firstName} ${lastName}`;
+
+        let user = await this.userService.findUserByEmail(email);
+
+        if (user) {
+            if (user.provider !== 'google') {
+                throw new BadRequestException('This email is already registered with another provider');
+            }
+            // User exists and is google user, proceed to login
+        } else {
+            // User does not exist, create new google user
+            user = await this.userService.createOAuthUser({
+                email,
+                name,
+                provider: 'google',
+            });
+        }
+
+        return this.login(user);
+    }
 }

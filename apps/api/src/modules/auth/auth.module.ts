@@ -9,6 +9,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 import { UsersModule } from '../users/users.module';
 import { BullModule } from '@nestjs/bullmq';
 import { EMAIL_QUEUE } from 'src/infrastructure/messaging/queues/queue.constant';
+import { GoogleStrategy } from './strategies/google.strategy';
 
 @Module({
   imports: [
@@ -28,7 +29,7 @@ import { EMAIL_QUEUE } from 'src/infrastructure/messaging/queues/queue.constant'
     })
   ],
   controllers: [AuthController],
-  providers: [AuthService, LocalStrategy, JwtStrategy],
+  providers: [AuthService, LocalStrategy, JwtStrategy, GoogleStrategy],
   exports: [AuthService]
 })
 export class AuthModule { }

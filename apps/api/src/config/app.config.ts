@@ -63,7 +63,7 @@ export class RedisConfiguration {
     @Value('REDIS_HOST')
     host: string
 
-    @Value('REDIS_PORT')
+    @Value('REDIS_PORT', {parse: parseInt})
     port: number 
 
     constructor(config: Required<RedisConfiguration>) {
@@ -87,5 +87,35 @@ export class JwtConfiguration {
       this.secret = config.secret;
       this.expire = config.expire;
       
+  }
+}
+
+@Configuration()
+@RequiredArgsConstructor()
+export class GoogleConfiguration {
+  @Value('GOOGLE_CLIENT_ID')
+  clientId: string
+
+  @Value('GOOGLE_CLIENT_SECRET')
+  clientSecret: string
+
+  @Value('GOOGLE_CALLBACK_URL')
+  callbackUrl: string
+
+  constructor(config: Required<GoogleConfiguration>) {
+    this.clientId = config.clientId;
+    this.clientSecret = config.clientSecret;
+    this.callbackUrl = config.callbackUrl;
+  }
+}
+
+@Configuration()
+@RequiredArgsConstructor()
+export class ServerConfiguration {
+  @Value('SERVER_PASSWORD')
+  serverPassword: string
+
+  constructor(config: Required<ServerConfiguration>) {
+    this.serverPassword = config.serverPassword;
   }
 }

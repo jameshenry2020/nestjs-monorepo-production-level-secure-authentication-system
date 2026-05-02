@@ -8,6 +8,7 @@ import { EmailVerificationDto } from './dto/email-verification.dto';
 import { ResendOtpDto } from './dto/resend-otp.dto';
 import { LoginResponseDto, SignInDto } from './dto/sign-in.dto';
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { GoogleAuthGuard } from './guards/google-auth.guard';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -52,6 +53,20 @@ export class AuthController {
   @Post('sign-in')
   async login(@Request() req) {
     return this.authService.login(req.user);
+  }
+
+  @ApiOperation({ summary: 'Login with Google' })
+  @Get('google')
+  @UseGuards(GoogleAuthGuard)
+  async googleAuth(@Request() req) {
+    // This will redirect to Google
+  }
+
+  @ApiOperation({ summary: 'Google OAuth callback' })
+  @Get('google/callback')
+  @UseGuards(GoogleAuthGuard)
+  googleAuthRedirect(@Request() req) {
+    return this.authService.googleLogin(req);
   }
 
   @ApiBearerAuth()
