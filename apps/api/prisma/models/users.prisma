@@ -19,6 +19,10 @@ model User{
     createdAt       DateTime  @default(now()) @map("created_at")
     updatedAt       DateTime  @updatedAt      @map("updated_at")
     otp  OtpCode[]
+    passwordResetTokens PasswordResetToken[]
+    
+    roleId String? @db.Uuid @map("role_id")
+    role   Role?   @relation(fields: [roleId], references: [id])
 
     @@map("users")
 }
@@ -34,4 +38,33 @@ model OtpCode {
     user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
 
     @@map("otp_codes")
+}
+
+model PasswordResetToken {
+    id Int @id @default(autoincrement())
+    hashedToken String @map("hashed_token")
+    isUsed      Boolean  @default(false) @map("is_used")
+    expiresAt   DateTime @map("expires_at")
+    createdAt   DateTime @default(now()) @map("created_at")
+    userId      String   @db.Uuid
+    user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@map("password_reset_tokens")
+}
+
+model Role {
+    id   String @id @default(uuid()) @db.Uuid
+    name String @unique
+    users User[]
+    permissions Permission[] @relation("RoleToPermission")
+
+    @@map("roles")
+}
+
+model Permission {
+    id   String @id @default(uuid()) @db.Uuid
+    name String @unique
+    roles Role[] @relation("RoleToPermission")
+
+    @@map("permissions")
 }
