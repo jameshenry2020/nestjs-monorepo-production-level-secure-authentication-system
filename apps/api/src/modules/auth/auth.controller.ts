@@ -9,6 +9,9 @@ import { ResendOtpDto } from './dto/resend-otp.dto';
 import { LoginResponseDto, SignInDto } from './dto/sign-in.dto';
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { GoogleAuthGuard } from './guards/google-auth.guard';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -89,5 +92,30 @@ export class AuthController {
   @Post('logout')
   async logout(@Request() req) {
     return req.logout();
+  }
+
+  @ApiOperation({ summary: 'Request password reset link' })
+  @ApiResponse({ status: 200, description: 'Success message' })
+  @Post('forgot-password')
+  async forgotPassword(@Body() dto: ForgotPasswordDto) {
+    return this.authService.forgotPassword(dto);
+  }
+
+  @ApiOperation({ summary: 'Reset password using token' })
+  @ApiResponse({ status: 200, description: 'Success message' })
+  @ApiResponse({ status: 400, description: 'Invalid or expired token' })
+  @Post('reset-password')
+  async resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.authService.resetPassword(dto);
+  }
+
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Change password (authenticated)' })
+  @ApiResponse({ status: 200, description: 'Success message' })
+  @ApiResponse({ status: 400, description: 'Incorrect current password' })
+  @UseGuards(JwtAuthGuard)
+  @Post('change-password')
+  async changePassword(@Request() req, @Body() dto: ChangePasswordDto) {
+    return this.authService.changePassword(req.user.id, dto);
   }
 }

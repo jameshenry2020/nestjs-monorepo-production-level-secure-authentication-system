@@ -7,6 +7,9 @@ import { Queue } from 'bullmq';
 import { verify } from 'argon2';
 import { JwtService } from '@nestjs/jwt';
 import { EmailVerificationDto } from './dto/email-verification.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 
 @Injectable()
 export class AuthService {
@@ -83,7 +86,8 @@ export class AuthService {
         const currentUser = {
             id: user.id,
             name: user.name,
-            email: user.email
+            email: user.email,
+            role: user.role,
         }
         return currentUser
     }
@@ -113,5 +117,51 @@ export class AuthService {
         }
 
         return this.login(user);
+    }
+
+    async forgotPassword(dto: ForgotPasswordDto) {
+        const user = await this.userService.findUserByEmail(dto.email);
+        
+        // Prevent user enumeration: always return success
+        if (!user) {
+            return { message: 'If an account with that email exists, a reset link has been sent.' };
+        }
+
+        const token = await this.userService.generatePasswordResetToken(user.id);
+        
+        await this.emailQueue.add(
+            EMAIL_JOBS.SEND_FORGOT_PASSWORD_EMAIL,
+            {
+                email: user.email,
+                token: token,
+            },
+        );
+
+        return { message: 'If an account with that email exists, a reset link has been sent.' };
+    }
+
+    async resetPassword(dto: ResetPasswordDto) {
+        const resetTokenRecord = await this.userService.verifyResetToken(dto.token);
+        if (!resetTokenRecord) {
+            throw new BadRequestException('Invalid or expired reset token');
+        }
+
+        await this.userService.updatePassword(resetTokenRecord.userId, dto.new_password, resetTokenRecord.id);
+        return { message: 'Password has been successfully reset.' };
+    }
+
+    async changePassword(userId: string, dto: ChangePasswordDto) {
+        const user = await this.userService.findUserById(userId);
+        if (!user) {
+            throw new BadRequestException('User not found');
+        }
+
+        const isMatch = await verify(user.hashedPassword, dto.current_password);
+        if (!isMatch) {
+            throw new BadRequestException('Incorrect current password');
+        }
+
+        await this.userService.updatePassword(userId, dto.new_password);
+        return { message: 'Password has been successfully changed.' };
     }
 }
