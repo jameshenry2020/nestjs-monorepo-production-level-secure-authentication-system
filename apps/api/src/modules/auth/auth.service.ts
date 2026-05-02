@@ -107,6 +107,7 @@ export class AuthService {
                 throw new BadRequestException('This email is already registered with another provider');
             }
             // User exists and is google user, proceed to login
+
         } else {
             // User does not exist, create new google user
             user = await this.userService.createOAuthUser({
@@ -121,14 +122,14 @@ export class AuthService {
 
     async forgotPassword(dto: ForgotPasswordDto) {
         const user = await this.userService.findUserByEmail(dto.email);
-        
+
         // Prevent user enumeration: always return success
         if (!user) {
             return { message: 'If an account with that email exists, a reset link has been sent.' };
         }
 
         const token = await this.userService.generatePasswordResetToken(user.id);
-        
+
         await this.emailQueue.add(
             EMAIL_JOBS.SEND_FORGOT_PASSWORD_EMAIL,
             {
