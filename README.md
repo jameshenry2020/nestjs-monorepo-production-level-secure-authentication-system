@@ -84,10 +84,12 @@ This project goes beyond basic auth — it implements **secure, scalable, and ev
 
 ### Backend
 - NestJS
+- PostgreSQL
+- Prisma
 - JWT Authentication
 - Passport (Google OAuth)
 - BullMQ + Redis
-- Bcrypt
+- Argon2
 
 ### Frontend
 - Next.js
