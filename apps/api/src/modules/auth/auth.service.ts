@@ -28,7 +28,7 @@ export class AuthService {
 
         const validatedUser = {
             id: user.id,
-            name: user.name,
+            email: user.email,
             is_active: user.isActive
         }
         return validatedUser;
@@ -87,7 +87,8 @@ export class AuthService {
             id: user.id,
             name: user.name,
             email: user.email,
-            role: user.role,
+            permissions: user.role.rolePermissions.map((rp: any) => rp.permission.name),
+            userPermissions: user.userPermissions.map((up: any) => up.permission.name)
         }
         return currentUser
     }

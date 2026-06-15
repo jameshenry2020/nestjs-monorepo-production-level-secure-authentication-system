@@ -8,11 +8,11 @@ import { ServerConfiguration } from 'src/config/app.config';
 @Injectable()
 export class UsersService {
     constructor(
-        private readonly databaseService:DatabaseService,
+        private readonly databaseService: DatabaseService,
         private readonly serverConfig: ServerConfiguration
-    ){}
+    ) { }
 
-    async createUser(createUserDto: CreateUserDto){
+    async createUser(createUserDto: CreateUserDto) {
         const { password, confirm_password, ...userData } = createUserDto;
         if (password !== confirm_password) {
             throw new BadRequestException('Password and confirm password do not match');
@@ -39,23 +39,33 @@ export class UsersService {
     }
 
 
-    async findUserByEmail(email:string){
+    async findUserByEmail(email: string) {
         return await this.databaseService.user.findUnique({
-            where:{
+            where: {
                 email
             }
         })
     }
 
-    async findUserById(userId:string){
+    async findUserById(userId: string) {
         return await this.databaseService.user.findUnique({
-            where:{
+            where: {
                 id: userId
             },
             include: {
                 role: {
                     include: {
-                        permissions: true
+                        rolePermissions: {
+                            include: {
+                                permission: true
+                            }
+                        },
+
+                    }
+                },
+                userPermissions: {
+                    include: {
+                        permission: true
                     }
                 }
             }
@@ -64,12 +74,17 @@ export class UsersService {
 
     async getRoleByName(name: string) {
         return await this.databaseService.role.findUnique({
-            where: { name }
+            where: {
+                name_organizationId: {
+                    name,
+                    organizationId: null,
+                },
+            },
         });
     }
     //to be used in the authService the resend in auth service gets the email, retrieve user and pass the userid get the otp and dispatch to to worker.
-    async resendOtp(userId:string){
-        let plainOtp:string = '';
+    async resendOtp(userId: string) {
+        let plainOtp: string = '';
         await this.databaseService.$transaction(async (tx) => {
             const otp = generateOtp()
             plainOtp = otp
@@ -77,22 +92,22 @@ export class UsersService {
             const hashedOtp = await hashOtp(otp)
 
             await tx.otpCode.updateMany({
-            where: {
-                userId,
-                isUsed: false,
-            },
-            data: {
-                isUsed: true,
-            },
+                where: {
+                    userId,
+                    isUsed: false,
+                },
+                data: {
+                    isUsed: true,
+                },
             })
 
             await tx.otpCode.create({
-            data: {
-                userId,
-                hashedOtp,
-                expiresAt: new Date(Date.now() + 10 * 60 * 1000),
-            },
-            })     
+                data: {
+                    userId,
+                    hashedOtp,
+                    expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+                },
+            })
         })
         return plainOtp
     }
@@ -101,14 +116,14 @@ export class UsersService {
     async verifyOtp(userId: string, inputOtp: string) {
         const otpRecord = await this.databaseService.otpCode.findFirst({
             where: {
-            userId,
-            isUsed: false,
-            expiresAt: {
-                gt: new Date(),
-            },
+                userId,
+                isUsed: false,
+                expiresAt: {
+                    gt: new Date(),
+                },
             },
             orderBy: {
-            createdAt: 'desc',
+                createdAt: 'desc',
             },
         })
         if (!otpRecord) throw new BadRequestException('Invalid or expired OTP')
@@ -119,12 +134,12 @@ export class UsersService {
 
         await this.databaseService.$transaction([
             this.databaseService.otpCode.update({
-            where: { id: otpRecord.id },
-            data: { isUsed: true },
+                where: { id: otpRecord.id },
+                data: { isUsed: true },
             }),
             this.databaseService.user.update({
-            where: { id: userId },
-            data: { isEmailVerified: true, isActive: true },
+                where: { id: userId },
+                data: { isEmailVerified: true, isActive: true },
             }),
         ])
 
@@ -185,7 +200,7 @@ export class UsersService {
 
     async updatePassword(userId: string, newPassword: string, tokenId?: number) {
         const hashedPassword = await hash(newPassword);
-        
+
         const operations: any[] = [
             this.databaseService.user.update({
                 where: { id: userId },
@@ -220,7 +235,7 @@ export class UsersService {
         }
         const hashedPassword = await hash(password);
         const adminRole = await this.getRoleByName('admin');
-        
+
         return await this.databaseService.user.create({
             data: {
                 ...userData,

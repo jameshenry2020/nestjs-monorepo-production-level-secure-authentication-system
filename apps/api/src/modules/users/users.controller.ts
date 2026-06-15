@@ -35,11 +35,11 @@ export class UsersController {
     return this.usersService.createAdmin(createUserDto);
   }
 
-  @ApiOperation({ summary: 'Delete a user (Admin only with manage_users permission)' })
+  @ApiOperation({ summary: 'Delete a user (Admin only with users.manage permission)' })
   @ApiResponse({ status: 200, description: 'User successfully deleted' })
   @ApiResponse({ status: 403, description: 'Forbidden' })
   @Roles('admin')
-  @Permissions('manage_users')
+  @Permissions('users.manage')
   @UseGuards(RolesGuard, PermissionsGuard)
   @Delete(':id')
   async remove(@Param('id') id: string) {
