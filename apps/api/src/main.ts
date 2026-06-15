@@ -12,11 +12,15 @@ async function bootstrap() {
   }));
 
   const config = new DocumentBuilder()
-    .setTitle('Secure Authentication API')
-    .setDescription('The secure production grade api authentication service with jwt, oauth, access control with role and permission')
+    .setTitle('Secure Enterprise Level Authentication & Permission Access Control Policy Management API')
+    .setDescription('The secure production grade api authentication service with jwt, oauth, access control with role and permission and organisation')
     .setVersion('1.0')
     .addTag('Auth')
     .addTag('Users')
+    .addTag('Roles')
+    .addTag('Permissions')
+    .addTag('Organizations')
+    .addTag('Projects')
     .addBearerAuth()
     .build();
   const documentFactory = () => SwaggerModule.createDocument(app, config);
