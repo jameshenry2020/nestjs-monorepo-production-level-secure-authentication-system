@@ -17,7 +17,24 @@ export class EmailConsumerProcessor extends WorkerHost {
                 return this.handleForgotPasswordEmail(job)
             case EMAIL_JOBS.SEND_WELCOME_EMAIL:
                 return this.handleWelcomeEmail(job)
+            case EMAIL_JOBS.SEND_INVITATION_EMAIL:
+                return this.handleInvitationEmail(job)
         }
+    }
+
+    private async handleInvitationEmail(job: Job<{ email: string, orgName: string, inviterName: string, token: string }>) {
+        await this.emailService.sendEmail({
+            recipients: job.data.email,
+            subject: `You've been invited to join ${job.data.orgName}`,
+            template: 'invitation',
+            contextItems: {
+                orgName: job.data.orgName,
+                inviterName: job.data.inviterName,
+                inviteLink: `http://localhost:3000/organizations/invitations/accept?token=${job.data.token}`,
+                year: String(new Date().getFullYear()),
+                appName: 'Secure Auth System'
+            },
+        })
     }
 
     private async handleVerificationEmail(job: Job<{ email: string, otp: string }>) {

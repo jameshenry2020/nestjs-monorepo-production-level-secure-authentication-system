@@ -6,11 +6,11 @@ import { EmailModule } from "src/infrastructure/mails/email.module";
 
 
 @Module({
-    imports:[
+    imports: [
         EmailModule,
         BullModule.registerQueue({
             name: EMAIL_QUEUE,
-            })],
-    providers:[EmailConsumerProcessor]
+        })],
+    providers: [EmailConsumerProcessor]
 })
-export class BackgroundJobModule{}
+export class BackgroundJobModule { }
