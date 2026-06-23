@@ -247,6 +247,14 @@ export class UsersService {
         });
     }
 
+    async updateRefreshToken(userId: string, refreshToken: string | null) {
+        const hashedRefreshToken = refreshToken ? await hash(refreshToken) : null;
+        await this.databaseService.user.update({
+            where: { id: userId },
+            data: { hashedRefreshToken },
+        });
+    }
+
     async deleteUser(userId: string) {
         const user = await this.findUserById(userId);
         if (!user) {

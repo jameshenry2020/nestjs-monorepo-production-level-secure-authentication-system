@@ -7,6 +7,7 @@ import { JwtAuthGuard } from 'src/common/guards/jwt.auth.guard';
 import { EmailVerificationDto } from './dto/email-verification.dto';
 import { ResendOtpDto } from './dto/resend-otp.dto';
 import { LoginResponseDto, SignInDto } from './dto/sign-in.dto';
+import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { GoogleAuthGuard } from './guards/google-auth.guard';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
@@ -16,27 +17,27 @@ import { ChangePasswordDto } from './dto/change-password.dto';
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(private readonly authService: AuthService) { }
 
   @ApiOperation({ summary: 'Register a new user account' })
   @ApiResponse({ status: 201, description: 'User successfully registered', type: UserResponseDto })
   @ApiResponse({ status: 400, description: 'Bad Request / User already exists' })
   @Post("signup")
-  async createAccount(@Body() createUserDto: CreateUserDto): Promise<UserResponseDto>{
+  async createAccount(@Body() createUserDto: CreateUserDto): Promise<UserResponseDto> {
     const user = await this.authService.registerUser(createUserDto)
-      return {
-        id: user.id,
-        email: user.email,
-        createdAt: user.createdAt,
-      };
+    return {
+      id: user.id,
+      email: user.email,
+      createdAt: user.createdAt,
+    };
   }
 
   @ApiOperation({ summary: 'Verify user email using OTP' })
   @ApiResponse({ status: 200, description: 'Email successfully verified' })
   @ApiResponse({ status: 400, description: 'Invalid or expired OTP' })
   @Post('otp-verification')
-  async verifyUserEmail(@Body() requestDto:EmailVerificationDto){
-      return await this.authService.verifyEmail(requestDto)
+  async verifyUserEmail(@Body() requestDto: EmailVerificationDto) {
+    return await this.authService.verifyEmail(requestDto)
   }
 
   @ApiOperation({ summary: 'Resend OTP for email verification' })
@@ -78,7 +79,7 @@ export class AuthController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @UseGuards(JwtAuthGuard)
   @Get('profile')
-  async profile(@Request() req){
+  async profile(@Request() req) {
     return {
       user: req.user,
       message: "accessing protected endpoint"
@@ -88,10 +89,20 @@ export class AuthController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Logout from the application' })
   @ApiResponse({ status: 201, description: 'Successfully logged out' })
-  @UseGuards(LocalAuthGuard)
+  @UseGuards(JwtAuthGuard)
   @Post('logout')
   async logout(@Request() req) {
-    return req.logout();
+    await this.authService.logout(req.user.id);
+    return { message: 'Successfully logged out' };
+  }
+
+  @ApiOperation({ summary: 'Refresh access token using refresh token' })
+  @ApiBody({ type: RefreshTokenDto })
+  @ApiResponse({ status: 200, description: 'Successfully refreshed tokens', type: LoginResponseDto })
+  @ApiResponse({ status: 401, description: 'Invalid or expired refresh token' })
+  @Post('refresh-token')
+  async refresh(@Body() dto: RefreshTokenDto) {
+    return this.authService.refresh(dto.refreshToken);
   }
 
   @ApiOperation({ summary: 'Request password reset link' })

@@ -18,4 +18,13 @@ export class LoginResponseDto {
 
   @ApiProperty({ example: 'eyJhbGci...', description: 'JWT access token for subsequent authenticated requests' })
   access_token: string;
+
+  @ApiProperty({ example: 'eyJhbGci...', description: 'JWT access token' })
+  accessToken: string;
+
+  @ApiProperty({ example: 'eyJhbGci...', description: 'JWT refresh token for obtaining new access tokens' })
+  refresh_token: string;
+
+  @ApiProperty({ example: 'eyJhbGci...', description: 'JWT refresh token' })
+  refreshToken: string;
 }

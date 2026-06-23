@@ -10,13 +10,15 @@ import { EmailVerificationDto } from './dto/email-verification.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import { JwtConfiguration } from 'src/config/app.config';
 
 @Injectable()
 export class AuthService {
     constructor(
         @InjectQueue(EMAIL_QUEUE) private readonly emailQueue: Queue,
         private readonly userService: UsersService,
-        private jwtService: JwtService
+        private readonly jwtService: JwtService,
+        private readonly config: JwtConfiguration,
     ) { }
 
     async validateUser(email: string, password: string) {
@@ -73,9 +75,21 @@ export class AuthService {
 
     async login(user: any) {
         const payload = { sub: user.id };
+        const accessToken = this.jwtService.sign(payload, {
+            secret: this.config.secret,
+            expiresIn: '10m',
+        });
+        const refreshToken = this.jwtService.sign(payload, {
+            secret: this.config.refreshSecret,
+            expiresIn: '24h',
+        });
+
+        await this.userService.updateRefreshToken(user.id, refreshToken);
+
         return {
             userId: user.id,
-            access_token: this.jwtService.sign(payload),
+            access_token: accessToken,
+            refresh_token: refreshToken,
         };
     }
 
@@ -87,10 +101,44 @@ export class AuthService {
             id: user.id,
             name: user.name,
             email: user.email,
-            permissions: user.role.rolePermissions.map((rp: any) => rp.permission.name),
-            userPermissions: user.userPermissions.map((up: any) => up.permission.name)
+            role: user.role ? {
+                id: user.role.id,
+                name: user.role.name,
+            } : null,
+            permissions: user.role?.rolePermissions.map((rp: any) => rp.permission.name) || [],
+            userPermissions: user.userPermissions?.map((up: any) => up.permission.name) || []
         }
         return currentUser
+    }
+
+    async refresh(refreshToken: string) {
+        try {
+            const payload = this.jwtService.verify(refreshToken, {
+                secret: this.config.refreshSecret,
+            });
+
+            const user = await this.userService.findUserById(payload.sub);
+            if (!user || !user.isActive) {
+                throw new UnauthorizedException('User not found or inactive');
+            }
+
+            if (!user.hashedRefreshToken) {
+                throw new UnauthorizedException('Invalid refresh token');
+            }
+
+            const isMatch = await verify(user.hashedRefreshToken, refreshToken);
+            if (!isMatch) {
+                throw new UnauthorizedException('Invalid refresh token');
+            }
+
+            return this.login(user);
+        } catch (error) {
+            throw new UnauthorizedException('Invalid or expired refresh token');
+        }
+    }
+
+    async logout(userId: string) {
+        await this.userService.updateRefreshToken(userId, null);
     }
 
     async googleLogin(req) {

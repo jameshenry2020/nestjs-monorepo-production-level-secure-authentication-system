@@ -83,10 +83,13 @@ export class JwtConfiguration {
   @Value('JWT_EXPIRE_IN', {parse: parseInt})
   expire: number 
 
+  @Value('JWT_REFRESH_SECRET', { default: 'mUIlNifOEUOMomzmBUNDZc/rsSEbOLlMGv8YXjDQLfQ=_refresh' })
+  refreshSecret: string
+
    constructor(config: Required<JwtConfiguration>) {
       this.secret = config.secret;
       this.expire = config.expire;
-      
+      this.refreshSecret = config.refreshSecret;
   }
 }
 
