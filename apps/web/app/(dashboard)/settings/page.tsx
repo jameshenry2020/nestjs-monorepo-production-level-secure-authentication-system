@@ -5,8 +5,17 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import api from '@/lib/api';
 import { useAuthStore } from '@/store/auth-store';
+import { 
+  inviteMemberAction, 
+  updateMemberRoleAction, 
+  removeMemberAction 
+} from '@/app/actions/org';
+import { 
+  createPermissionAction, 
+  assignRolePermissionsAction, 
+  assignUserPermissionsAction 
+} from '@/app/actions/perm';
 import { 
   Building, 
   Users, 
@@ -66,11 +75,15 @@ export default function SettingsPage() {
   // Check if user is Platform Admin (role === admin or email ends with admin)
   const isPlatformAdmin = user?.role?.name === 'admin';
 
-  // 1. Fetch user organizations
+  // 1. Fetch user organizations from local Route Handler
   const { data: organizations = [], isLoading: loadingOrgs } = useQuery({
     queryKey: ['organizations'],
     queryFn: async () => {
-      const { data } = await api.get('/organizations');
+      const res = await fetch('/api/organizations');
+      if (!res.ok) {
+        throw new Error('Failed to load organizations');
+      }
+      const data = await res.json();
       if (data.length > 0 && !selectedOrgId) {
         setSelectedOrgId(data[0].id);
       }
@@ -80,35 +93,44 @@ export default function SettingsPage() {
 
   const selectedOrg = organizations.find((o: any) => o.id === selectedOrgId);
 
-  // 2. Fetch organization members
+  // 2. Fetch organization members from local Route Handler
   const { data: members = [], isLoading: loadingMembers } = useQuery({
     queryKey: ['members', selectedOrgId],
     queryFn: async () => {
       if (!selectedOrgId) return [];
-      const { data } = await api.get(`/organizations/${selectedOrgId}/members`);
-      return data;
+      const res = await fetch(`/api/organizations/${selectedOrgId}/members`);
+      if (!res.ok) {
+        throw new Error('Failed to load members');
+      }
+      return res.json();
     },
     enabled: !!selectedOrgId,
   });
 
-  // 3. Admin-only: Fetch all permissions
+  // 3. Admin-only: Fetch all permissions from local Route Handler
   const { data: permissions = [], isLoading: loadingPermissions } = useQuery({
     queryKey: ['permissions'],
     queryFn: async () => {
       if (!isPlatformAdmin) return [];
-      const { data } = await api.get('/permissions');
-      return data;
+      const res = await fetch('/api/permissions');
+      if (!res.ok) {
+        throw new Error('Failed to load permissions');
+      }
+      return res.json();
     },
     enabled: isPlatformAdmin,
   });
 
-  // 4. Admin-only: Fetch all platform users
+  // 4. Admin-only: Fetch all platform users from local Route Handler
   const { data: platformUsers = [], isLoading: loadingUsers } = useQuery({
     queryKey: ['platform-users'],
     queryFn: async () => {
       if (!isPlatformAdmin) return [];
-      const { data } = await api.get('/users');
-      return data;
+      const res = await fetch('/api/users');
+      if (!res.ok) {
+        throw new Error('Failed to load users');
+      }
+      return res.json();
     },
     enabled: isPlatformAdmin,
   });
@@ -134,49 +156,65 @@ export default function SettingsPage() {
     defaultValues: { userId: '', permissions: [] as any },
   });
 
-  // Mutations
+  // Mutations calling Server Actions
   const inviteMutation = useMutation({
     mutationFn: async (values: z.infer<typeof inviteSchema>) => {
-      return api.post(`/organizations/${selectedOrgId}/invitations`, values);
+      const result = await inviteMemberAction(selectedOrgId, values.email);
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+      return result.data;
     },
     onSuccess: () => {
       toast.success('Invitation email sent successfully!');
       inviteForm.reset();
     },
     onError: (err: any) => {
-      toast.error(err.response?.data?.message || 'Failed to send invitation');
+      toast.error(err.message || 'Failed to send invitation');
     },
   });
 
   const updateRoleMutation = useMutation({
     mutationFn: async ({ memberUserId, roleName }: { memberUserId: string; roleName: string }) => {
-      return api.put(`/organizations/${selectedOrgId}/members/${memberUserId}/role`, { roleName });
+      const result = await updateMemberRoleAction(selectedOrgId, memberUserId, roleName);
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+      return result.data;
     },
     onSuccess: () => {
       toast.success('Member role updated successfully!');
       queryClient.invalidateQueries({ queryKey: ['members', selectedOrgId] });
     },
     onError: (err: any) => {
-      toast.error(err.response?.data?.message || 'Failed to update member role');
+      toast.error(err.message || 'Failed to update member role');
     },
   });
 
   const removeMemberMutation = useMutation({
     mutationFn: async (memberUserId: string) => {
-      return api.delete(`/organizations/${selectedOrgId}/members/${memberUserId}`);
+      const result = await removeMemberAction(selectedOrgId, memberUserId);
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+      return result.data;
     },
     onSuccess: () => {
       toast.success('Member removed from organization.');
       queryClient.invalidateQueries({ queryKey: ['members', selectedOrgId] });
     },
     onError: (err: any) => {
-      toast.error(err.response?.data?.message || 'Failed to remove member');
+      toast.error(err.message || 'Failed to remove member');
     },
   });
 
   const createPermissionMutation = useMutation({
     mutationFn: async (values: z.infer<typeof createPermissionSchema>) => {
-      return api.post('/permissions', values);
+      const result = await createPermissionAction(values);
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+      return result.data;
     },
     onSuccess: () => {
       toast.success('New permission created successfully.');
@@ -184,13 +222,17 @@ export default function SettingsPage() {
       permForm.reset();
     },
     onError: (err: any) => {
-      toast.error(err.response?.data?.message || 'Failed to create permission');
+      toast.error(err.message || 'Failed to create permission');
     },
   });
 
   const assignRolePermMutation = useMutation({
     mutationFn: async (values: any) => {
-      return api.post(`/permissions/roles/${values.roleId}`, { permissions: values.permissions });
+      const result = await assignRolePermissionsAction(values.roleId, values.permissions);
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+      return result.data;
     },
     onSuccess: () => {
       toast.success('Permissions assigned to role successfully.');
@@ -198,13 +240,17 @@ export default function SettingsPage() {
       assignRoleForm.reset();
     },
     onError: (err: any) => {
-      toast.error(err.response?.data?.message || 'Failed to assign permissions');
+      toast.error(err.message || 'Failed to assign permissions');
     },
   });
 
   const assignUserPermMutation = useMutation({
     mutationFn: async (values: any) => {
-      return api.post(`/permissions/users/${values.userId}`, { permissions: values.permissions });
+      const result = await assignUserPermissionsAction(values.userId, values.permissions);
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+      return result.data;
     },
     onSuccess: () => {
       toast.success('Direct user permissions updated successfully.');
@@ -212,7 +258,7 @@ export default function SettingsPage() {
       assignUserForm.reset();
     },
     onError: (err: any) => {
-      toast.error(err.response?.data?.message || 'Failed to assign user permissions');
+      toast.error(err.message || 'Failed to assign user permissions');
     },
   });
 

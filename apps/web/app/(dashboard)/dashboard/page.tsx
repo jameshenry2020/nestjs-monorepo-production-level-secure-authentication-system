@@ -21,17 +21,19 @@ import {
   Loader2
 } from 'lucide-react';
 import Link from 'next/link';
-import api from '@/lib/api';
 
 export default function DashboardPage() {
   const { user } = useAuthStore();
 
-  // Fetch user organizations
+  // Fetch user organizations from local Next.js route handler
   const { data: organizations = [], isLoading: loadingOrgs } = useQuery({
     queryKey: ['organizations'],
     queryFn: async () => {
-      const { data } = await api.get('/organizations');
-      return data;
+      const res = await fetch('/api/organizations');
+      if (!res.ok) {
+        throw new Error('Failed to load organizations');
+      }
+      return res.json();
     },
   });
 

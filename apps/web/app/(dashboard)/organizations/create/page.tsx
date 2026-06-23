@@ -16,11 +16,11 @@ import {
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import api from '@/lib/api';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { Building, ArrowLeft, ArrowRight, ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
+import { createOrganizationAction } from '@/app/actions/org';
 
 const createOrgSchema = z.object({
   name: z.string().min(2, 'Organization name must be at least 2 characters').max(256, 'Max 256 characters'),
@@ -50,8 +50,11 @@ export default function CreateOrganizationPage() {
 
   const mutation = useMutation({
     mutationFn: async (values: z.infer<typeof createOrgSchema>) => {
-      const { data } = await api.post('/organizations', values);
-      return data;
+      const result = await createOrganizationAction(values);
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+      return result.data;
     },
     onSuccess: (data) => {
       toast.success(`Organization "${data.name}" created successfully!`);
@@ -60,7 +63,7 @@ export default function CreateOrganizationPage() {
       router.push('/dashboard');
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Failed to create organization');
+      toast.error(error.message || 'Failed to create organization');
     },
   });
 

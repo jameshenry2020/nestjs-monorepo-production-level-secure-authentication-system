@@ -15,9 +15,9 @@ import {
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { useMutation } from '@tanstack/react-query';
-import api from '@/lib/api';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/store/auth-store';
+import { changePasswordAction } from '@/app/actions/auth';
 
 const changePasswordSchema = z.object({
   current_password: z.string().min(1, 'Current password is required'),
@@ -42,15 +42,18 @@ export default function ProfilePage() {
 
   const mutation = useMutation({
     mutationFn: async (values: z.infer<typeof changePasswordSchema>) => {
-      const { data } = await api.post('/auth/change-password', values);
-      return data;
+      const result = await changePasswordAction(values);
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+      return result.data;
     },
     onSuccess: () => {
       toast.success('Password changed successfully!');
       form.reset();
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Failed to change password');
+      toast.error(error.message || 'Failed to change password');
     },
   });
 

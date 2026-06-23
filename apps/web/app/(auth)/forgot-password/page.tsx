@@ -16,8 +16,8 @@ import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import Link from 'next/link';
 import { useMutation } from '@tanstack/react-query';
-import api from '@/lib/api';
 import { toast } from 'sonner';
+import { forgotPasswordAction } from '@/app/actions/auth';
 
 const forgotPasswordSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -33,15 +33,18 @@ export default function ForgotPasswordPage() {
 
   const mutation = useMutation({
     mutationFn: async (values: z.infer<typeof forgotPasswordSchema>) => {
-      const { data } = await api.post('/auth/forgot-password', values);
-      return data;
+      const result = await forgotPasswordAction(values);
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+      return result.data;
     },
-    onSuccess: (data) => {
-      toast.success(data.message || 'Reset link sent if account exists.');
+    onSuccess: (data: any) => {
+      toast.success(data?.message || 'Reset link sent if account exists.');
       form.reset();
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Something went wrong');
+      toast.error(error.message || 'Something went wrong');
     },
   });
 

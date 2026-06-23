@@ -4,10 +4,10 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { useMutation } from '@tanstack/react-query';
-import api from '@/lib/api';
 import { toast } from 'sonner';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Input } from '@/components/ui/input';
+import { verifyEmailAction, resendOtpAction } from '@/app/actions/auth';
 
 export default function VerifyEmailPage() {
   const router = useRouter();
@@ -17,28 +17,34 @@ export default function VerifyEmailPage() {
 
   const verifyMutation = useMutation({
     mutationFn: async (values: { email: string; otp: string }) => {
-      const { data } = await api.post('/auth/otp-verification', values);
-      return data;
+      const result = await verifyEmailAction(values);
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+      return result.data;
     },
     onSuccess: () => {
       toast.success('Email verified successfully! You can now log in.');
       router.push('/login');
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Invalid or expired OTP');
+      toast.error(error.message || 'Invalid or expired OTP');
     },
   });
 
   const resendMutation = useMutation({
     mutationFn: async (email: string) => {
-      const { data } = await api.post('/auth/resend-otp', { email });
-      return data;
+      const result = await resendOtpAction(email);
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+      return result.data;
     },
     onSuccess: () => {
       toast.success('New OTP sent to your email.');
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Failed to resend OTP');
+      toast.error(error.message || 'Failed to resend OTP');
     },
   });
 

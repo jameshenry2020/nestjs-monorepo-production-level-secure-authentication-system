@@ -15,9 +15,9 @@ import {
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { useMutation } from '@tanstack/react-query';
-import api from '@/lib/api';
 import { toast } from 'sonner';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { resetPasswordAction } from '@/app/actions/auth';
 
 const resetPasswordSchema = z.object({
   new_password: z.string().min(8, 'Password must be at least 8 characters'),
@@ -42,18 +42,21 @@ export default function ResetPasswordPage() {
 
   const mutation = useMutation({
     mutationFn: async (values: any) => {
-      const { data } = await api.post('/auth/reset-password', {
+      const result = await resetPasswordAction({
         token,
         new_password: values.new_password,
       });
-      return data;
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+      return result.data;
     },
     onSuccess: () => {
       toast.success('Password reset successful! Please log in with your new password.');
       router.push('/login');
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Invalid or expired token');
+      toast.error(error.message || 'Invalid or expired token');
     },
   });
 

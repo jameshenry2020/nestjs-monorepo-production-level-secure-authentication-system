@@ -1,33 +1,36 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/auth-store';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { Shield, LayoutDashboard, User, Settings, LogOut, Loader2 } from 'lucide-react';
+import { Shield, LayoutDashboard, User, Settings, LogOut } from 'lucide-react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { logoutAction } from '@/app/actions/auth';
+import { toast } from 'sonner';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, logout, user } = useAuthStore();
+  const { user, clearAuth } = useAuthStore();
   const router = useRouter();
-  const [mounted, setMounted] = useState(false);
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    setMounted(true);
-    if (!isAuthenticated) {
+  const logoutMutation = useMutation({
+    mutationFn: logoutAction,
+    onSuccess: () => {
+      clearAuth();
+      queryClient.clear(); // Reset React Query cache
+      toast.success('Logged out successfully');
       router.push('/login');
-    }
-  }, [isAuthenticated, router]);
+    },
+    onError: () => {
+      toast.error('Failed to log out');
+    },
+  });
 
-  if (!mounted) {
-    return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-        <Loader2 className="h-8 w-8 text-indigo-500 animate-spin" />
-      </div>
-    );
-  }
-
-  if (!isAuthenticated) return null;
+  const handleLogout = () => {
+    logoutMutation.mutate();
+  };
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
@@ -67,7 +70,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <Button 
               variant="ghost" 
               size="sm" 
-              onClick={logout} 
+              onClick={handleLogout} 
               className="text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
             >
               <LogOut className="h-4.5 w-4.5 mr-1.5" />

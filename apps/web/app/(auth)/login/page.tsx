@@ -16,10 +16,10 @@ import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import Link from 'next/link';
 import { useMutation } from '@tanstack/react-query';
-import api from '@/lib/api';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/auth-store';
+import { loginAction } from '@/app/actions/auth';
 
 const loginSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -40,18 +40,21 @@ export default function LoginPage() {
 
   const mutation = useMutation({
     mutationFn: async (values: z.infer<typeof loginSchema>) => {
-      const { data } = await api.post('/auth/sign-in', values);
-      return data;
+      const result = await loginAction(values);
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+      return result.user;
     },
-    onSuccess: (data) => {
-      // In a real app, you might want to fetch user profile after login
-      // For now, let's assume the API returns enough info or we'll fetch it in layout
-      setAuth({ id: data.userId, name: '', email: form.getValues('email') }, data.access_token);
+    onSuccess: (user) => {
+      if (user) {
+        setAuth(user);
+      }
       toast.success('Successfully logged in!');
       router.push('/dashboard');
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Invalid credentials');
+      toast.error(error.message || 'Invalid credentials');
     },
   });
 

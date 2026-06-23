@@ -16,9 +16,9 @@ import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import Link from 'next/link';
 import { useMutation } from '@tanstack/react-query';
-import api from '@/lib/api';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
+import { signupAction } from '@/app/actions/auth';
 
 const signupSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
@@ -44,15 +44,18 @@ export default function SignupPage() {
 
   const mutation = useMutation({
     mutationFn: async (values: z.infer<typeof signupSchema>) => {
-      const { data } = await api.post('/auth/signup', values);
-      return data;
+      const result = await signupAction(values);
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+      return result.data;
     },
     onSuccess: () => {
       toast.success('Account created! Please check your email for OTP.');
       router.push('/verify-email?email=' + form.getValues('email'));
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Something went wrong');
+      toast.error(error.message || 'Something went wrong');
     },
   });
 
