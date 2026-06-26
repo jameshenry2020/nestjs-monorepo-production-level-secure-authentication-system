@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuthStore, User } from '@/store/auth-store';
 import { useQuery } from '@tanstack/react-query';
+import { getCurrentUser } from '@/lib/auth';
 
 interface UserProviderProps {
   initialSession: User | null;
@@ -24,18 +25,11 @@ export function UserProvider({ initialSession, children }: UserProviderProps) {
     setIsInitialized(true);
   }
 
-  // React Query query function to retrieve authenticated user (live updates)
+  // React Query query function to retrieve authenticated user (live updates) using the server action
   const { data: user } = useQuery<User | null>({
     queryKey: ['user'],
     queryFn: async () => {
-      try {
-        const res = await fetch('/api/auth/me');
-        if (!res.ok) return null;
-        const data = await res.json();
-        return data.user;
-      } catch (e) {
-        return null;
-      }
+      return getCurrentUser();
     },
     initialData: initialSession,
     staleTime: 60 * 1000, // 1 minute

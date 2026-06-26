@@ -1,3 +1,5 @@
+'use server';
+
 import { backendApi } from './backend-api';
 
 export interface User {
