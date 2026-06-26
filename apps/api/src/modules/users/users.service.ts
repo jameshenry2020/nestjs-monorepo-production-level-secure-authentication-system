@@ -73,13 +73,14 @@ export class UsersService {
     }
 
     async getRoleByName(name: string) {
-        return await this.databaseService.role.findUnique({
+        return await this.databaseService.role.findFirst({
             where: {
-                name_organizationId: {
-                    name,
-                    organizationId: null,
-                },
+                name,
+                organizationId: null,
             },
+            select: {
+                id: true,
+            }
         });
     }
     //to be used in the authService the resend in auth service gets the email, retrieve user and pass the userid get the otp and dispatch to to worker.

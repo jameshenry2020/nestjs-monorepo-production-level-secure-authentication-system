@@ -1,6 +1,7 @@
 import { Injectable, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { DatabaseService } from 'src/infrastructure/database/database.service';
 import { CreateProjectDto } from './dto/create-project.dto';
+import { UpdateProjectDto } from './dto/update-project.dto';
 
 @Injectable()
 export class ProjectsService {
@@ -63,5 +64,27 @@ export class ProjectsService {
     }
 
     return project;
+  }
+
+  async update(id: string, userId: string, context: any, dto: UpdateProjectDto) {
+    // Reuses findOne to perform permission and existence checks
+    await this.findOne(id, userId, context);
+
+    return this.databaseService.project.update({
+      where: { id },
+      data: {
+        name: dto.name,
+        description: dto.description,
+      },
+    });
+  }
+
+  async remove(id: string, userId: string, context: any) {
+    // Reuses findOne to perform permission and existence checks
+    await this.findOne(id, userId, context);
+
+    return this.databaseService.project.delete({
+      where: { id },
+    });
   }
 }

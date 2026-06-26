@@ -80,6 +80,8 @@ export class PermissionsGuard implements CanActivate {
       if (organizationContext && organizationContext.type === 'ORGANIZATION') {
         if (permission === 'project.create') permissionToCheck = 'org.projects.create';
         if (permission === 'project.read') permissionToCheck = 'org.projects.read';
+        if (permission === 'project.update') permissionToCheck = 'org.projects.update';
+        if (permission === 'project.delete') permissionToCheck = 'org.projects.delete';
       }
       return permissionsSet.has(permissionToCheck);
     });

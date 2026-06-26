@@ -14,12 +14,13 @@ async function main() {
     { name: 'settings.update', module: 'settings', description: 'To update platform settings' },
     { name: 'project.read', module: 'project', description: 'To read projects' },
     { name: 'project.create', module: 'project', description: 'To create projects' },
+    { name: 'project.update', module: 'project', description: 'To update projects' },
     { name: 'organisation.read', module: 'organisation', description: 'To read organization details' },
     { name: 'organisation.update', module: 'organisation', description: 'To update organization details' },
     { name: 'users.manage', module: 'users', description: 'To manage system users' },
     { name: 'dashboard.view', module: 'dashboard', description: 'To view admin dashboard' },
     { name: 'profile.update', module: 'profile', description: 'To edit user profile' },
-    
+
     // Organization-level Permissions
     { name: 'org.members.invite', module: 'org.members', description: 'To invite members to organization' },
     { name: 'org.members.update', module: 'org.members', description: 'To update organization member roles' },
@@ -51,24 +52,26 @@ async function main() {
     },
     {
       name: 'user',
-      permissions: ['dashboard.view', 'profile.update', 'settings.read', 'project.read', 'project.create'],
+      permissions: ['dashboard.view', 'profile.update', 'settings.read', 'settings.update', 'project.read', 'project.create', 'project.update'],
     },
   ];
 
   for (const roleData of roles) {
-    const role = await prisma.role.upsert({
+    let role = await prisma.role.findFirst({
       where: {
-        name_organizationId: {
-          name: roleData.name,
-          organizationId: null,
-        },
-      },
-      update: {},
-      create: {
         name: roleData.name,
         organizationId: null,
       },
     });
+
+    if (!role) {
+      role = await prisma.role.create({
+        data: {
+          name: roleData.name,
+          organizationId: null,
+        },
+      });
+    }
 
     // Clear existing role permissions
     await prisma.rolePermission.deleteMany({
