@@ -31,7 +31,8 @@ export class AuthService {
         const validatedUser = {
             id: user.id,
             email: user.email,
-            is_active: user.isActive
+            is_active: user.isActive,
+            twoFactor: user.twoFactor,
         }
         return validatedUser;
     }
@@ -73,7 +74,19 @@ export class AuthService {
         return true
     }
 
-    async login(user: any) {
+    async login(user: any, skip2FACheck = false) {
+        if (user.twoFactor?.enabled && !skip2FACheck) {
+            const payload = { sub: user.id, isPending2FA: true };
+            const tempToken = this.jwtService.sign(payload, {
+                secret: this.config.secret,
+                expiresIn: '5m',
+            });
+            return {
+                require2FA: true,
+                twoFactorToken: tempToken,
+            };
+        }
+
         const payload = { sub: user.id };
         const accessToken = this.jwtService.sign(payload, {
             secret: this.config.secret,
@@ -101,6 +114,7 @@ export class AuthService {
             id: user.id,
             name: user.name,
             email: user.email,
+            isTwoFactorEnabled: !!user.twoFactor?.enabled,
             role: user.role ? {
                 id: user.role.id,
                 name: user.role.name,

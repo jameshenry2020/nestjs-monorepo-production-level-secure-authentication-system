@@ -64,7 +64,7 @@ export class RedisConfiguration {
     host: string
 
     @Value('REDIS_PORT', {parse: parseInt})
-    port: number 
+    port: number
 
     constructor(config: Required<RedisConfiguration>) {
       this.host = config.host;
@@ -81,7 +81,7 @@ export class JwtConfiguration {
   secret: string
 
   @Value('JWT_EXPIRE_IN', {parse: parseInt})
-  expire: number 
+  expire: number
 
   @Value('JWT_REFRESH_SECRET', { default: 'mUIlNifOEUOMomzmBUNDZc/rsSEbOLlMGv8YXjDQLfQ=_refresh' })
   refreshSecret: string
@@ -120,5 +120,16 @@ export class ServerConfiguration {
 
   constructor(config: Required<ServerConfiguration>) {
     this.serverPassword = config.serverPassword;
+  }
+}
+
+@Configuration()
+@RequiredArgsConstructor()
+export class TwoFactorConfiguration {
+  @Value('TWO_FACTOR_ENCRYPTION_KEY', { default: 'a-very-secure-32-character-default-key-for-2fa' })
+  encryptionKey: string;
+
+  constructor(config: Required<TwoFactorConfiguration>) {
+    this.encryptionKey = config.encryptionKey;
   }
 }

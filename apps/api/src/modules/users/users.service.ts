@@ -43,6 +43,9 @@ export class UsersService {
         return await this.databaseService.user.findUnique({
             where: {
                 email
+            },
+            include: {
+                twoFactor: true
             }
         })
     }
@@ -67,7 +70,8 @@ export class UsersService {
                     include: {
                         permission: true
                     }
-                }
+                },
+                twoFactor: true
             }
         })
     }
@@ -160,6 +164,9 @@ export class UsersService {
                 isEmailVerified: true,
                 isActive: true,
             },
+            include: {
+                twoFactor: true
+            }
         });
     }
 

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Request, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, Request, UseGuards, UnauthorizedException } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { CreateUserDto } from '../users/dto/create-user.dto';
 import { UserResponseDto } from '../users/dto/user-dto';
@@ -13,11 +13,22 @@ import { GoogleAuthGuard } from './guards/google-auth.guard';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import { TwoFactorAuthService } from './two-factor-auth.service';
+import { JwtService } from '@nestjs/jwt';
+import { UsersService } from '../users/users.service';
+import { JwtConfiguration } from 'src/config/app.config';
+import { TwoFactorCodeDto, AuthenticateTwoFactorDto } from './dto/two-factor.dto';
 
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) { }
+  constructor(
+    private readonly authService: AuthService,
+    private readonly twoFactorAuthService: TwoFactorAuthService,
+    private readonly jwtService: JwtService,
+    private readonly userService: UsersService,
+    private readonly config: JwtConfiguration,
+  ) { }
 
   @ApiOperation({ summary: 'Register a new user account' })
   @ApiResponse({ status: 201, description: 'User successfully registered', type: UserResponseDto })
@@ -128,5 +139,58 @@ export class AuthController {
   @Post('change-password')
   async changePassword(@Request() req, @Body() dto: ChangePasswordDto) {
     return this.authService.changePassword(req.user.id, dto);
+  }
+
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Initiate 2FA setup by generating a secret and QR Code' })
+  @ApiResponse({ status: 200, description: '2FA secret and QR code data URL successfully generated' })
+  @UseGuards(JwtAuthGuard)
+  @Post('2fa/setup')
+  async setup2FA(@Request() req) {
+    return this.twoFactorAuthService.generate2FASecret(req.user.id, req.user.email);
+  }
+
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Enable 2FA by verifying the setup code' })
+  @ApiResponse({ status: 200, description: '2FA successfully enabled, returns recovery backup codes' })
+  @UseGuards(JwtAuthGuard)
+  @Post('2fa/enable')
+  async enable2FA(@Request() req, @Body() dto: TwoFactorCodeDto) {
+    return this.twoFactorAuthService.enable2FA(req.user.id, dto.code);
+  }
+
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Disable 2FA' })
+  @ApiResponse({ status: 200, description: '2FA successfully disabled' })
+  @UseGuards(JwtAuthGuard)
+  @Post('2fa/disable')
+  async disable2FA(@Request() req, @Body() dto: TwoFactorCodeDto) {
+    return this.twoFactorAuthService.disable2FA(req.user.id, dto.code);
+  }
+
+  @ApiOperation({ summary: 'Verify 2FA during login using code and temporary token' })
+  @ApiResponse({ status: 200, description: '2FA verification success, returns access and refresh tokens' })
+  @Post('2fa/authenticate')
+  async authenticate2FA(@Body() dto: AuthenticateTwoFactorDto) {
+    let payload: any;
+    try {
+      payload = this.jwtService.verify(dto.twoFactorToken, {
+        secret: this.config.secret,
+      });
+    } catch (err) {
+      throw new UnauthorizedException('Invalid or expired 2FA token');
+    }
+
+    if (!payload.isPending2FA) {
+      throw new UnauthorizedException('Invalid 2FA token scope');
+    }
+
+    const isValid = await this.twoFactorAuthService.verifyCode(payload.sub, dto.code);
+    if (!isValid) {
+      throw new UnauthorizedException('Invalid verification code');
+    }
+
+    const user = await this.userService.findUserById(payload.sub);
+    return this.authService.login(user, true);
   }
 }

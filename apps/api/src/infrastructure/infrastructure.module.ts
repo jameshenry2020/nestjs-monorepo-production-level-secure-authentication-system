@@ -4,8 +4,7 @@ import { BullModule } from '@nestjs/bullmq';
 import { RedisConfiguration } from "src/config/app.config";
 import { BackgroundJobModule } from "./messaging/queues/queue.module";
 import { EmailModule } from "./mails/email.module";
-
-
+import { EncryptionService } from "./crypto/encryption.service";
 
 @Module({
     imports: [
@@ -27,8 +26,8 @@ import { EmailModule } from "./mails/email.module";
         }),
         BackgroundJobModule
     ],
-    exports: [],
-    providers: []
+    exports: [EncryptionService],
+    providers: [EncryptionService]
 })
 export class InfrastructureModule {
 
