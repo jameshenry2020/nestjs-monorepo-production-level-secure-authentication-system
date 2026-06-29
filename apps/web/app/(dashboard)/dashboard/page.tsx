@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -20,7 +20,9 @@ import {
   Lock,
   User,
   Loader2,
-  FolderOpen
+  FolderOpen,
+  Copy,
+  Check
 } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
@@ -37,6 +39,11 @@ import {
   updateProjectAction,
   deleteProjectAction,
 } from '@/app/actions/project';
+import {
+  setup2FAAction,
+  enable2FAAction,
+  disable2FAAction,
+} from '@/app/actions/auth';
 
 export default function DashboardPage() {
   const queryClient = useQueryClient();
@@ -54,6 +61,97 @@ export default function DashboardPage() {
   const [selectedProject, setSelectedProject] = useState<any>(null);
   const [editName, setEditName] = useState('');
   const [editDesc, setEditDesc] = useState('');
+
+  // 2FA Setup state
+  const [isSetup2faOpen, setIsSetup2faOpen] = useState(false);
+  const [isSettingUp2fa, setIsSettingUp2fa] = useState(false);
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState('');
+  const [totpSecret, setTotpSecret] = useState('');
+  const [verificationCode, setVerificationCode] = useState('');
+  const [backupCodes, setBackupCodes] = useState<string[] | null>(null);
+  const [isVerifying2fa, setIsVerifying2fa] = useState(false);
+  const [setupError, setSetupError] = useState('');
+  const [copiedCodes, setCopiedCodes] = useState(false);
+
+  // 2FA Disable state
+  const [isDisable2faOpen, setIsDisable2faOpen] = useState(false);
+  const [disableCode, setDisableCode] = useState('');
+  const [isDisabling2fa, setIsDisabling2fa] = useState(false);
+  const [disableError, setDisableError] = useState('');
+
+  const handleStartSetup2fa = async () => {
+    setIsSettingUp2fa(true);
+    setSetupError('');
+    const res = await setup2FAAction();
+    setIsSettingUp2fa(false);
+    if (res.success && res.data) {
+      setQrCodeDataUrl(res.data.qrCodeDataUrl);
+      setTotpSecret(res.data.secret);
+      setVerificationCode('');
+      setBackupCodes(null);
+      setIsSetup2faOpen(true);
+    } else {
+      toast.error(res.error || 'Failed to initiate 2FA setup');
+    }
+  };
+
+  const handleVerifyAndEnable2fa = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (verificationCode.length !== 6) {
+      setSetupError('Verification code must be exactly 6 digits');
+      return;
+    }
+    setIsVerifying2fa(true);
+    setSetupError('');
+    const res = await enable2FAAction(verificationCode);
+    setIsVerifying2fa(false);
+    if (res.success && res.data) {
+      setBackupCodes(res.data.backupCodes);
+      toast.success('Two-factor authentication enabled successfully!');
+      queryClient.invalidateQueries({ queryKey: ['user'] });
+    } else {
+      setSetupError(res.error || 'Failed to verify code');
+    }
+  };
+
+  const handleDisable2fa = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!disableCode) {
+      setDisableError('Verification code is required');
+      return;
+    }
+    setIsDisabling2fa(true);
+    setDisableError('');
+    const res = await disable2FAAction(disableCode);
+    setIsDisabling2fa(false);
+    if (res.success) {
+      setIsDisable2faOpen(false);
+      setDisableCode('');
+      toast.success('Two-factor authentication disabled successfully.');
+      queryClient.invalidateQueries({ queryKey: ['user'] });
+    } else {
+      setDisableError(res.error || 'Failed to disable 2FA');
+    }
+  };
+
+  const copyBackupCodesToClipboard = () => {
+    if (!backupCodes) return;
+    navigator.clipboard.writeText(backupCodes.join('\n'));
+    setCopiedCodes(true);
+    toast.success('Backup codes copied to clipboard');
+    setTimeout(() => setCopiedCodes(false), 2000);
+  };
+
+  const downloadBackupCodes = () => {
+    if (!backupCodes) return;
+    const element = document.createElement("a");
+    const file = new Blob([backupCodes.join('\n')], {type: 'text/plain'});
+    element.href = URL.createObjectURL(file);
+    element.download = "backup-codes.txt";
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
+  };
 
   // 1. Fetch user organizations
   const { data: organizations = [], isLoading: loadingOrgs } = useQuery({
@@ -91,7 +189,7 @@ export default function DashboardPage() {
 
   // Active Permissions based on active scope
   const activeScopePermissions = activeScopeId === 'personal'
-    ? user?.role?.permissions || []
+    ? user?.permissions || []
     : userRoleInOrg === 'owner'
       ? [
           { name: 'organisation.read', description: 'Read organization details' },
@@ -286,13 +384,46 @@ export default function DashboardPage() {
           <CardContent className="p-6 flex items-center justify-between">
             <div className="space-y-1">
               <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">MFA Protection</span>
-              <div className="text-sm font-bold text-green-500 flex items-center gap-1.5 mt-2">
-                <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-                Active
-              </div>
+              {user?.isTwoFactorEnabled ? (
+                <div className="space-y-2 mt-2">
+                  <div className="text-sm font-bold text-emerald-500 flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                    Active
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsDisable2faOpen(true)}
+                    className="h-7 text-xs border-red-500/30 text-red-500 hover:bg-red-500/10 hover:text-red-500 dark:border-red-500/20 rounded-lg px-2.5 font-medium"
+                  >
+                    Disable 2FA
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-2 mt-2">
+                  <div className="text-sm font-bold text-slate-400 flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-full bg-slate-400" />
+                    Inactive
+                  </div>
+                  <Button
+                    size="sm"
+                    onClick={handleStartSetup2fa}
+                    disabled={isSettingUp2fa}
+                    className="h-7 text-xs bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg px-2.5 font-semibold"
+                  >
+                    {isSettingUp2fa ? (
+                      <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                    ) : null}
+                    Enable 2FA
+                  </Button>
+                </div>
+              )}
             </div>
-            <div className="h-12 w-12 bg-emerald-500/10 rounded-xl flex items-center justify-center">
-              <Lock className="h-6 w-6 text-emerald-500" />
+            <div className={cn(
+              "h-12 w-12 rounded-xl flex items-center justify-center",
+              user?.isTwoFactorEnabled ? "bg-emerald-500/10" : "bg-slate-500/10"
+            )}>
+              <Lock className={cn("h-6 w-6", user?.isTwoFactorEnabled ? "text-emerald-500" : "text-slate-450 dark:text-slate-400")} />
             </div>
           </CardContent>
         </Card>
@@ -580,6 +711,202 @@ export default function DashboardPage() {
               {deleteMutation.isPending ? 'Deleting...' : 'Delete Project'}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* SETUP 2FA MODAL */}
+      <Dialog open={isSetup2faOpen} onOpenChange={(open) => {
+        if (!open && backupCodes) {
+          setIsSetup2faOpen(false);
+          setBackupCodes(null);
+        } else if (!open) {
+          setIsSetup2faOpen(false);
+        }
+      }}>
+        <DialogContent className="bg-slate-900 text-slate-100 border border-slate-800 max-w-md w-full">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold">Set Up Two-Factor Authentication</DialogTitle>
+            <DialogDescription className="text-slate-400">
+              Enhance your account security by requiring a verification code when signing in.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {!backupCodes ? (
+            <form onSubmit={handleVerifyAndEnable2fa} className="space-y-4 py-4">
+              <div className="flex flex-col items-center justify-center space-y-4 p-4 bg-slate-950 rounded-xl border border-slate-850 font-sans">
+                {qrCodeDataUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={qrCodeDataUrl}
+                    alt="2FA QR Code"
+                    className="w-48 h-48 rounded-lg bg-white p-2 border border-slate-800"
+                  />
+                ) : (
+                  <div className="w-48 h-48 flex items-center justify-center bg-slate-900 rounded-lg">
+                    <Loader2 className="h-8 w-8 animate-spin text-indigo-500" />
+                  </div>
+                )}
+                <div className="text-center space-y-1">
+                  <p className="text-xs text-slate-400">Scan this QR code with your authenticator app</p>
+                  <p className="text-[10px] text-slate-500 font-mono select-all">Secret: {totpSecret}</p>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="verification-code" className="text-sm font-semibold">Verification Code</Label>
+                <Input
+                  id="verification-code"
+                  type="text"
+                  maxLength={6}
+                  value={verificationCode}
+                  onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, ''))}
+                  placeholder="Enter 6-digit code"
+                  className="bg-slate-950 border-slate-800 text-white rounded-lg focus-visible:ring-indigo-500 text-center text-lg tracking-widest font-mono h-11"
+                  disabled={isVerifying2fa}
+                  required
+                />
+                {setupError && (
+                  <p className="text-xs text-red-500 font-medium">{setupError}</p>
+                )}
+              </div>
+
+              <DialogFooter className="pt-2 flex flex-row gap-2 justify-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsSetup2faOpen(false)}
+                  className="border-slate-800 bg-slate-950 text-slate-300 hover:bg-slate-900 hover:text-white"
+                  disabled={isVerifying2fa}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  className="bg-indigo-500 hover:bg-indigo-600 text-white font-semibold"
+                  disabled={isVerifying2fa}
+                >
+                  {isVerifying2fa ? 'Verifying...' : 'Verify & Enable'}
+                </Button>
+              </DialogFooter>
+            </form>
+          ) : (
+            <div className="space-y-4 py-4">
+              <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 p-4 rounded-xl text-sm flex items-start gap-2.5">
+                <ShieldCheck className="h-5 w-5 shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-bold">MFA Enabled Successfully!</span>
+                  <p className="text-xs text-emerald-400/90 mt-1">
+                    Store these backup recovery codes in a secure location. You can use them to log in if you lose access to your authenticator device. Each code can only be used once.
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 bg-slate-950 p-4 rounded-xl border border-slate-800 font-mono text-sm text-center">
+                {backupCodes.map((code, index) => (
+                  <div key={index} className="py-1 px-2 bg-slate-900/50 rounded border border-slate-850 text-slate-200">
+                    {code}
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={copyBackupCodesToClipboard}
+                  className="flex-1 border-slate-800 bg-slate-950 text-slate-300 hover:bg-slate-900 hover:text-white text-xs gap-1.5"
+                >
+                  {copiedCodes ? (
+                    <>
+                      <Check className="h-4 w-4 text-emerald-500" />
+                      Copied!
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="h-4 w-4" />
+                      Copy Codes
+                    </>
+                  )}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={downloadBackupCodes}
+                  className="flex-1 border-slate-800 bg-slate-950 text-slate-300 hover:bg-slate-900 hover:text-white text-xs gap-1.5"
+                >
+                  Download .txt
+                </Button>
+              </div>
+
+              <DialogFooter className="pt-2">
+                <Button
+                  type="button"
+                  onClick={() => {
+                    setIsSetup2faOpen(false);
+                    setBackupCodes(null);
+                  }}
+                  className="w-full bg-indigo-500 hover:bg-indigo-600 text-white font-semibold"
+                >
+                  Done
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* DISABLE 2FA MODAL */}
+      <Dialog open={isDisable2faOpen} onOpenChange={setIsDisable2faOpen}>
+        <DialogContent className="bg-slate-900 text-slate-100 border border-slate-800 max-w-sm w-full">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold text-red-500">Disable Two-Factor Authentication</DialogTitle>
+            <DialogDescription className="text-slate-400">
+              For security, please enter the 6-digit verification code from your authenticator app to disable MFA.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleDisable2fa} className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="disable-code" className="text-sm font-semibold">Verification Code</Label>
+              <Input
+                id="disable-code"
+                type="text"
+                maxLength={6}
+                value={disableCode}
+                onChange={(e) => setDisableCode(e.target.value.replace(/\D/g, ''))}
+                placeholder="Enter 6-digit code"
+                className="bg-slate-950 border-slate-800 text-white rounded-lg focus-visible:ring-red-500 text-center text-lg tracking-widest font-mono h-11"
+                disabled={isDisabling2fa}
+                required
+              />
+              {disableError && (
+                <p className="text-xs text-red-500 font-medium">{disableError}</p>
+              )}
+            </div>
+
+            <DialogFooter className="pt-2 flex flex-row gap-2 justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setIsDisable2faOpen(false);
+                  setDisableCode('');
+                  setDisableError('');
+                }}
+                className="border-slate-800 bg-slate-950 text-slate-300 hover:bg-slate-900 hover:text-white"
+                disabled={isDisabling2fa}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                className="bg-red-500 hover:bg-red-650 text-white font-semibold"
+                disabled={isDisabling2fa}
+              >
+                {isDisabling2fa ? 'Disabling...' : 'Confirm Disable'}
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </div>

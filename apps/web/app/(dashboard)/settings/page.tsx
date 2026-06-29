@@ -58,12 +58,12 @@ const createPermissionSchema = z.object({
 
 const assignPermissionSchema = z.object({
   roleId: z.string().min(1, 'Role ID/Name is required'),
-  permissions: z.string().transform((val) => val.split(',').map(s => s.trim()).filter(Boolean)),
+  permissions: z.string().min(1, 'Permissions list is required'),
 });
 
 const assignUserPermissionSchema = z.object({
   userId: z.string().min(1, 'User ID is required'),
-  permissions: z.string().transform((val) => val.split(',').map(s => s.trim()).filter(Boolean)),
+  permissions: z.string().min(1, 'Permissions list is required'),
 });
 
 export default function SettingsPage() {
@@ -148,12 +148,12 @@ export default function SettingsPage() {
 
   const assignRoleForm = useForm<z.infer<typeof assignPermissionSchema>>({
     resolver: zodResolver(assignPermissionSchema),
-    defaultValues: { roleId: '', permissions: [] as any },
+    defaultValues: { roleId: '', permissions: '' },
   });
 
   const assignUserForm = useForm<z.infer<typeof assignUserPermissionSchema>>({
     resolver: zodResolver(assignUserPermissionSchema),
-    defaultValues: { userId: '', permissions: [] as any },
+    defaultValues: { userId: '', permissions: '' },
   });
 
   // Mutations calling Server Actions
@@ -227,8 +227,9 @@ export default function SettingsPage() {
   });
 
   const assignRolePermMutation = useMutation({
-    mutationFn: async (values: any) => {
-      const result = await assignRolePermissionsAction(values.roleId, values.permissions);
+    mutationFn: async (values: z.infer<typeof assignPermissionSchema>) => {
+      const permsArray = values.permissions.split(',').map(s => s.trim()).filter(Boolean);
+      const result = await assignRolePermissionsAction(values.roleId, permsArray);
       if (!result.success) {
         throw new Error(result.error);
       }
@@ -245,8 +246,9 @@ export default function SettingsPage() {
   });
 
   const assignUserPermMutation = useMutation({
-    mutationFn: async (values: any) => {
-      const result = await assignUserPermissionsAction(values.userId, values.permissions);
+    mutationFn: async (values: z.infer<typeof assignUserPermissionSchema>) => {
+      const permsArray = values.permissions.split(',').map(s => s.trim()).filter(Boolean);
+      const result = await assignUserPermissionsAction(values.userId, permsArray);
       if (!result.success) {
         throw new Error(result.error);
       }

@@ -96,10 +96,17 @@ export async function middleware(request: NextRequest) {
   // 2. Perform route protection redirections
   if (isProtectedRoute && !isAuthenticated) {
     const loginUrl = new URL('/login', request.url);
+    loginUrl.search = request.nextUrl.search;
     return NextResponse.redirect(loginUrl);
   }
 
   if (isAuthRoute && isAuthenticated) {
+    const token = request.nextUrl.searchParams.get('token');
+    if (token) {
+      const acceptUrl = new URL('/organizations/invitations/accept', request.url);
+      acceptUrl.searchParams.set('token', token);
+      return NextResponse.redirect(acceptUrl);
+    }
     const dashboardUrl = new URL('/dashboard', request.url);
     return NextResponse.redirect(dashboardUrl);
   }

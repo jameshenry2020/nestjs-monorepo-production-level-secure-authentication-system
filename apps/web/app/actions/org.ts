@@ -61,3 +61,33 @@ export async function removeMemberAction(orgId: string, memberUserId: string) {
     };
   }
 }
+
+export async function acceptInvitationAction(token: string) {
+  try {
+    const { data } = await backendApi.post(`/organizations/invitations/${token}/accept`);
+    return {
+      success: true,
+      data,
+    };
+  } catch (error: any) {
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to accept invitation',
+    };
+  }
+}
+
+export async function rejectInvitationAction(token: string) {
+  try {
+    const { data } = await backendApi.post(`/organizations/invitations/${token}/reject`);
+    return {
+      success: true,
+      data,
+    };
+  } catch (error: any) {
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to decline invitation',
+    };
+  }
+}

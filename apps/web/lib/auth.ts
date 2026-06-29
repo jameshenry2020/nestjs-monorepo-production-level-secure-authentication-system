@@ -6,6 +6,7 @@ export interface User {
   id: string;
   name: string;
   email: string;
+  isTwoFactorEnabled?: boolean;
   role?: {
     id: string;
     name: string;

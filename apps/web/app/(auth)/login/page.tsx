@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -18,10 +18,11 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import Link from 'next/link';
 import { useMutation } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/store/auth-store';
-import { loginAction } from '@/app/actions/auth';
+import { loginAction, authenticate2FAAction } from '@/app/actions/auth';
 import { Eye, EyeOff } from 'lucide-react';
+import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 
 const loginSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -30,8 +31,17 @@ const loginSchema = z.object({
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const token = searchParams.get('token');
   const setAuth = useAuthStore((state) => state.setAuth);
   const [showPassword, setShowPassword] = useState(false);
+
+  // 2FA login states
+  const [step, setStep] = useState<'login' | 'mfa'>('login');
+  const [twoFactorToken, setTwoFactorToken] = useState('');
+  const [mfaCode, setMfaCode] = useState('');
+  const [mfaError, setMfaError] = useState('');
+  const [isSubmittingMfa, setIsSubmittingMfa] = useState(false);
 
   const form = useForm<z.infer<typeof loginSchema>>({
     resolver: zodResolver(loginSchema),
@@ -47,14 +57,24 @@ export default function LoginPage() {
       if (!result.success) {
         throw new Error(result.error);
       }
-      return result.user;
+      return result;
     },
-    onSuccess: (user) => {
-      if (user) {
-        setAuth(user);
+    onSuccess: (result) => {
+      if (result.require2FA) {
+        setTwoFactorToken(result.twoFactorToken || '');
+        setStep('mfa');
+        toast.info('Two-Factor Authentication required. Please enter verification code.');
+      } else {
+        if (result.user) {
+          setAuth(result.user);
+        }
+        toast.success('Successfully logged in!');
+        if (token) {
+          router.push(`/organizations/invitations/accept?token=${token}`);
+        } else {
+          router.push('/dashboard');
+        }
       }
-      toast.success('Successfully logged in!');
-      router.push('/dashboard');
     },
     onError: (error: any) => {
       toast.error(error.message || 'Invalid credentials');
@@ -65,9 +85,119 @@ export default function LoginPage() {
     mutation.mutate(values);
   }
 
+  const handleMfaSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (mfaCode.length !== 6) {
+      setMfaError('Code must be exactly 6 digits');
+      return;
+    }
+    setIsSubmittingMfa(true);
+    setMfaError('');
+    try {
+      const result = await authenticate2FAAction(twoFactorToken, mfaCode);
+      if (result.success && result.user) {
+        setAuth(result.user);
+        toast.success('Successfully logged in!');
+        if (token) {
+          router.push(`/organizations/invitations/accept?token=${token}`);
+        } else {
+          router.push('/dashboard');
+        }
+      } else {
+        setMfaError(result.error || 'Invalid verification code');
+        toast.error(result.error || 'Verification failed');
+      }
+    } catch (err: any) {
+      setMfaError(err.message || 'An error occurred during verification');
+    } finally {
+      setIsSubmittingMfa(false);
+    }
+  };
+
   const handleGoogleLogin = () => {
     window.location.href = 'http://localhost:3001/auth/google';
   };
+
+  if (step === 'mfa') {
+    return (
+      <Card className="border-none shadow-2xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-md w-full max-w-md">
+        <CardHeader className="space-y-1 flex flex-col items-center text-center">
+          <div className="h-12 w-12 bg-indigo-500/10 rounded-xl flex items-center justify-center mb-2 shadow-lg shadow-indigo-500/20">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-6 w-6 text-indigo-500"
+            >
+              <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
+              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+            </svg>
+          </div>
+          <CardTitle className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Two-Factor Authentication</CardTitle>
+          <CardDescription>
+            Enter the 6-digit verification code from your authenticator app or one of your backup recovery codes.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleMfaSubmit} className="space-y-6 flex flex-col items-center">
+            <div className="space-y-2 w-full flex flex-col items-center">
+              <label htmlFor="mfa-input" className="text-sm font-semibold text-muted-foreground self-start pl-2">
+                Verification Code
+              </label>
+              
+              <InputOTP
+                maxLength={6}
+                value={mfaCode}
+                onChange={(val) => {
+                  setMfaCode(val);
+                  if (mfaError) setMfaError('');
+                }}
+                disabled={isSubmittingMfa}
+                containerClassName="flex justify-center"
+              >
+                <InputOTPGroup>
+                  <InputOTPSlot index={0} />
+                  <InputOTPSlot index={1} />
+                  <InputOTPSlot index={2} />
+                  <InputOTPSlot index={3} />
+                  <InputOTPSlot index={4} />
+                  <InputOTPSlot index={5} />
+                </InputOTPGroup>
+              </InputOTP>
+
+              {mfaError && (
+                <p className="text-xs text-red-500 font-medium mt-1.5 self-start pl-2">{mfaError}</p>
+              )}
+            </div>
+
+            <div className="w-full space-y-3">
+              <Button type="submit" className="w-full h-11 text-base font-semibold bg-indigo-500 hover:bg-indigo-600 text-white transition-all hover:scale-[1.01]" disabled={isSubmittingMfa || mfaCode.length < 6}>
+                {isSubmittingMfa ? "Verifying..." : "Verify & Sign In"}
+              </Button>
+              
+              <Button
+                type="button"
+                variant="ghost"
+                className="w-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500"
+                onClick={() => {
+                  setStep('login');
+                  setMfaCode('');
+                  setMfaError('');
+                }}
+                disabled={isSubmittingMfa}
+              >
+                Back to Sign In
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className="border-none shadow-2xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-md">
