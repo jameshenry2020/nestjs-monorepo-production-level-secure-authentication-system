@@ -1,0 +1,198 @@
+﻿
+enum AuthProvider {
+  email
+  google
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+model User {
+  id                   String       @id @default(uuid()) @db.Uuid
+  email                String       @unique
+  name                 String?      @db.VarChar(256)
+  hashed_password      String
+  provider             AuthProvider @default(email)
+  is_email_verified    Boolean      @default(false)
+  is_active            Boolean      @default(false)
+  is_admin             Boolean      @default(false)
+  hashed_refresh_token String?
+  role_id              String?      @db.Uuid
+  created_at           DateTime     @default(now())
+  updated_at           DateTime     @updatedAt
+
+  role                     Role?                    @relation(fields: [role_id], references: [id], onDelete: SetNull)
+  otp_codes                OtpCode[]
+  password_reset_tokens    PasswordResetToken[]
+  user_permissions         UserPermission[]
+  organization_members     OrganizationMember[]
+  organization_invitations OrganizationInvitation[] @relation("InvitedBy")
+  projects                 Project[]
+  two_factor               UserTwoFactor?
+
+  @@map("users")
+}
+
+model OtpCode {
+  id         Int      @id @default(autoincrement())
+  hashed_otp String
+  is_used    Boolean  @default(false)
+  expires_at DateTime
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  userId     String   @db.Uuid
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("otp_codes")
+}
+
+model PasswordResetToken {
+  id           Int      @id @default(autoincrement())
+  hashed_token String
+  is_used      Boolean  @default(false)
+  expires_at   DateTime
+  created_at   DateTime @default(now())
+  userId       String   @db.Uuid
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("password_reset_tokens")
+}
+
+model Role {
+  id              String  @id @default(uuid()) @db.Uuid
+  name            String
+  organization_id String? @db.Uuid
+
+  organization             Organization?            @relation(fields: [organization_id], references: [id], onDelete: Cascade)
+  users                    User[]
+  role_permissions         RolePermission[]
+  organization_members     OrganizationMember[]
+  organization_invitations OrganizationInvitation[]
+
+  @@unique([name, organization_id])
+  @@map("roles")
+}
+
+model Permission {
+  id          String  @id @default(uuid()) @db.Uuid
+  name        String  @unique
+  module      String  @db.VarChar(256)
+  description String? @db.VarChar(512)
+
+  role_permissions RolePermission[]
+  user_permissions UserPermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  id            String   @id @default(uuid()) @db.Uuid
+  role_id       String   @db.Uuid
+  permission_id String   @db.Uuid
+  created_at    DateTime @default(now())
+
+  role       Role       @relation(fields: [role_id], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permission_id], references: [id], onDelete: Cascade)
+
+  @@unique([role_id, permission_id])
+  @@map("role_permissions")
+}
+
+model UserPermission {
+  id            String   @id @default(uuid()) @db.Uuid
+  user_id       String   @db.Uuid
+  permission_id String   @db.Uuid
+  created_at    DateTime @default(now())
+
+  user       User       @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permission_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, permission_id])
+  @@map("user_permissions")
+}
+
+model Organization {
+  id         String   @id @default(uuid()) @db.Uuid
+  name       String   @db.VarChar(256)
+  slug       String   @unique @db.VarChar(256)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  roles       Role[]
+  members     OrganizationMember[]
+  invitations OrganizationInvitation[]
+  projects    Project[]
+
+  @@map("organizations")
+}
+
+model OrganizationMember {
+  id              String   @id @default(uuid()) @db.Uuid
+  organization_id String   @db.Uuid
+  user_id         String   @db.Uuid
+  role_id         String   @db.Uuid
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organization_id], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  role         Role         @relation(fields: [role_id], references: [id], onDelete: Restrict)
+
+  @@unique([organization_id, user_id])
+  @@map("organization_members")
+}
+
+model OrganizationInvitation {
+  id              String           @id @default(uuid()) @db.Uuid
+  organization_id String           @db.Uuid
+  email           String           @db.VarChar(256)
+  role_id         String           @db.Uuid
+  token           String           @unique
+  status          InvitationStatus @default(PENDING)
+  expires_at      DateTime
+  invited_by_id   String           @db.Uuid
+  created_at      DateTime         @default(now())
+  updated_at      DateTime         @updatedAt
+
+  organization Organization @relation(fields: [organization_id], references: [id], onDelete: Cascade)
+  role         Role         @relation(fields: [role_id], references: [id], onDelete: Restrict)
+  invited_by   User         @relation("InvitedBy", fields: [invited_by_id], references: [id], onDelete: Restrict)
+
+  @@unique([organization_id, email])
+  @@map("organization_invitations")
+}
+
+model Project {
+  id              String   @id @default(uuid()) @db.Uuid
+  name            String   @db.VarChar(256)
+  description     String?  @db.VarChar(512)
+  user_id         String?  @db.Uuid
+  organization_id String?  @db.Uuid
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  user         User?         @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  organization Organization? @relation(fields: [organization_id], references: [id], onDelete: Cascade)
+
+  @@map("projects")
+}
+
+model UserTwoFactor {
+  id             String    @id @default(uuid()) @db.Uuid
+  user_id        String    @unique @db.Uuid
+  secret         String
+  enabled        Boolean   @default(false)
+  recovery_codes String[]
+  verified_at    DateTime?
+  created_at     DateTime  @default(now())
+  updated_at     DateTime  @updatedAt
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("user_two_factors")
+}

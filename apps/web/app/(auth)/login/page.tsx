@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -156,11 +156,11 @@ export default function LoginPage() {
                   </div>
                   <FormControl>
                     <div className="relative">
-                      <Input 
-                        type={showPassword ? "text" : "password"} 
-                        placeholder="••••••••" 
-                        {...field} 
-                        className="bg-slate-50/50 dark:bg-slate-800/50 pr-10" 
+                      <Input
+                        type={showPassword ? "text" : "password"}
+                        placeholder="**********"
+                        {...field}
+                        className="bg-slate-50/50 dark:bg-slate-800/50 pr-10"
                       />
                       <button
                         type="button"

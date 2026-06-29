@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -30,7 +30,7 @@ const changePasswordSchema = z.object({
 
 export default function ProfilePage() {
   const { user } = useAuthStore();
-  
+
   const form = useForm<z.infer<typeof changePasswordSchema>>({
     resolver: zodResolver(changePasswordSchema),
     defaultValues: {
@@ -100,7 +100,7 @@ export default function ProfilePage() {
                   <FormItem>
                     <FormLabel>Current Password</FormLabel>
                     <FormControl>
-                      <Input type="password" placeholder="••••••••" {...field} className="bg-slate-50/50 dark:bg-slate-800/50" />
+                      <Input type="password" placeholder="******" {...field} className="bg-slate-50/50 dark:bg-slate-800/50" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -113,7 +113,7 @@ export default function ProfilePage() {
                   <FormItem>
                     <FormLabel>New Password</FormLabel>
                     <FormControl>
-                      <Input type="password" placeholder="••••••••" {...field} className="bg-slate-50/50 dark:bg-slate-800/50" />
+                      <Input type="password" placeholder="*******" {...field} className="bg-slate-50/50 dark:bg-slate-800/50" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -126,7 +126,7 @@ export default function ProfilePage() {
                   <FormItem>
                     <FormLabel>Confirm New Password</FormLabel>
                     <FormControl>
-                      <Input type="password" placeholder="••••••••" {...field} className="bg-slate-50/50 dark:bg-slate-800/50" />
+                      <Input type="password" placeholder="*********" {...field} className="bg-slate-50/50 dark:bg-slate-800/50" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

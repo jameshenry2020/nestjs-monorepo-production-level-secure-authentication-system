@@ -11,10 +11,12 @@ import { UsersModule } from '../users/users.module';
 import { BullModule } from '@nestjs/bullmq';
 import { EMAIL_QUEUE } from 'src/infrastructure/messaging/queues/queue.constant';
 import { GoogleStrategy } from './strategies/google.strategy';
+import { InfrastructureModule } from 'src/infrastructure/infrastructure.module';
 
 @Module({
   imports: [
     UsersModule,
+    InfrastructureModule,
     PassportModule,
     JwtModule.registerAsync({
       inject: [JwtConfiguration],
