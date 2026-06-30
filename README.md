@@ -34,6 +34,12 @@ This system goes far beyond basic auth. It implements a robust, dual-authorizati
 ###  5. Event-Driven Messaging Queue
 *   **Non-Blocking APIs:** High-throughput backend architecture. Time-consuming tasks like sending emails are offloaded to **BullMQ** running on a **Redis** queue.
 
+### 6. Multi-Factor / Two-Factor Authentication (MFA / 2FA)
+*   **TOTP-Based 2FA:** Users can secure their accounts using standard Time-based One-Time Passwords (TOTP) compatible with Google Authenticator, Authy, or other authenticator apps.
+*   **Encrypted Secret Storage:** 2FA secrets are cryptographically encrypted using AES-256-CBC with a server-side encryption key before being stored in the database.
+*   **Recovery Backup Codes:** Automatically generates 10 single-use, hashed recovery backup codes upon enabling MFA. Users can download or copy these codes to authenticate in case they lose access to their authenticator device.
+*   **Dual-Stage Verification Flow:** Login endpoints return a temporary, scoped 2FA-pending JWT if the user has MFA enabled. The client must then exchange this temporary token along with a valid TOTP/backup code for standard access and refresh tokens.
+
 ---
 
 ##  Architecture & Tech Stack
@@ -79,6 +85,7 @@ erDiagram
     User ||--o{ OrganizationMember : "memberships"
     User ||--o{ OrganizationInvitation : "sent_invitations"
     User ||--o{ Project : "personal_projects"
+    User ||--o| UserTwoFactor : "two_factor_auth"
 
     Role ||--o{ RolePermission : "has"
     Role ||--o{ User : "assigned_to"
@@ -140,6 +147,10 @@ Below are the primary endpoints exposed by the NestJS application:
 | `POST` | `/auth/forgot-password` | No | Dispatches a password reset link to user email. |
 | `POST` | `/auth/reset-password` | No | Resets password using the token sent to email. |
 | `POST` | `/auth/change-password` | JWT | Allows changing the password by validating current one. |
+| `POST` | `/auth/2fa/setup` | JWT | Initiates 2FA setup by generating a secret and QR Code. |
+| `POST` | `/auth/2fa/enable` | JWT | Enables 2FA by verifying the setup code and returns recovery backup codes. |
+| `POST` | `/auth/2fa/disable` | JWT | Disables 2FA by validating the code. |
+| `POST` | `/auth/2fa/authenticate` | No | Authenticates login using 2FA code and temporary token. |
 
 ### Organization Module (`/organizations`)
 
@@ -214,6 +225,9 @@ REDIS_PORT=6379
 
 # Fallback Password for OAuth Registration
 SERVER_PASSWORD=some_secure_fallback_password
+
+# Two-Factor Authentication Encryption Key
+TWO_FACTOR_ENCRYPTION_KEY=a-very-secure-32-character-key-for-2fa
 ```
 
 ### 3. Database Initialization

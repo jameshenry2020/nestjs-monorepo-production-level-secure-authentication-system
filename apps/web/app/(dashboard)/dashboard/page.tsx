@@ -357,13 +357,13 @@ export default function DashboardPage() {
         <Card className="border-none shadow-md bg-white dark:bg-slate-900 transition-all hover:scale-[1.01]">
           <CardContent className="p-6 flex items-center justify-between">
             <div className="space-y-1">
-              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Active Role</span>
-              <div className="text-lg font-bold capitalize truncate max-w-[130px]">
-                {activeRoleName}
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Team Members</span>
+              <div className="text-3xl font-extrabold">
+                {activeScopeId === 'personal' ? 'N/A' : (activeOrg?.members?.length || 0)}
               </div>
             </div>
             <div className="h-12 w-12 bg-violet-500/10 rounded-xl flex items-center justify-center">
-              <ShieldCheck className="h-6 w-6 text-violet-500" />
+              <Users className="h-6 w-6 text-violet-500" />
             </div>
           </CardContent>
         </Card>
